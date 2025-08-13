@@ -1,0 +1,40 @@
+# Use an ARG to allow easy customization of the Python version
+ARG PYTHON_VERSION=3.11
+FROM mcr.microsoft.com/devcontainers/python:${PYTHON_VERSION}-bookworm
+
+# Define versions as build-time arguments to easily manage dependencies
+ARG SPARK_VERSION=3.5.0
+ARG HADOOP_VERSION=3
+ARG JAVA_VERSION=17
+
+# Define ARGs for the Spark download URL and filename for clarity
+ARG SPARK_TGZ="spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz"
+ARG SPARK_URL="https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/${SPARK_TGZ}"
+
+# Set environment variables.
+# Using an architecture-agnostic path for JAVA_HOME.
+# Adding Spark to the PATH makes it easier to use spark-submit, etc.
+ENV SPARK_HOME=/spark \
+    JAVA_HOME=/usr/lib/jvm/openjdk-${JAVA_VERSION} \
+    SPARK_VERSION=${SPARK_VERSION} \
+    HADOOP_VERSION=${HADOOP_VERSION} \
+    JAVA_VERSION=${JAVA_VERSION}
+# Update PATH to include Spark binaries. This is done in a separate
+# ENV instruction to ensure SPARK_HOME is defined first.
+ENV PATH=${SPARK_HOME}/bin:${SPARK_HOME}/sbin:${PATH}
+
+# Install dependencies using BuildKit cache mounts to speed up subsequent builds.
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && export DEBIAN_FRONTEND=noninteractive \
+    && apt-get -y install --no-install-recommends \
+    "openjdk-${JAVA_VERSION}-jre-headless" \
+    wget
+
+# Install Spark using a cache mount for the download.
+# The downloaded .tgz file will be stored in the build cache and reused
+# across builds, avoiding repeated downloads of the large Spark binary.
+RUN --mount=type=cache,id=spark-download,target=/tmp/spark-cache \
+    wget -nv -O "/tmp/spark-cache/${SPARK_TGZ}" "${SPARK_URL}" && \
+    tar -xzf "/tmp/spark-cache/${SPARK_TGZ}" -C / && \
+    mv "/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}" "${SPARK_HOME}"

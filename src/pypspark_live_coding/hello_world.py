@@ -1,5 +1,5 @@
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, concat, lit
+from pyspark.sql import SparkSession, Window
+from pyspark.sql.functions import col, concat, lit, year, row_number
 from pyspark.sql.types import StringType
 from pathlib import Path
 
@@ -37,6 +37,28 @@ cast_date_expr = concat(                                        # create a conca
 )
 
 df.withColumn('new_date', cast_date_expr).show(5)                # adds new column to the df and shows it
+
+
+# this should be the corresponding SQL
+# SELECT *,
+# ROW_NUMBER() OVER(PARTITION BY year(Date) ORDER BY Close desc) rank,
+# FROM csv
+# WHERE rank = 1
+
+window = Window.partitionBy(                                    # create sql windows function
+    year(col('Date'))                                           # partitioning by the year of the Date
+).orderBy(
+    col('Close').desc()                                         # order window rows by Close DESC
+)
+
+df.withColumn(                                                  # add rank column
+    'rank', 
+    row_number().over(window)                                   # numbering the window records
+).filter(                                                       # filter only first records in windows
+    col('rank') == 1
+).drop(                                                         # drop rank column
+    'rank'
+).show()
 
 
 

@@ -1,4 +1,6 @@
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, concat, lit
+from pyspark.sql.types import StringType
 from pathlib import Path
 
 
@@ -26,5 +28,16 @@ df = spark.read.csv(csv_path, header=True, inferSchema=True)    # considers head
 df.printSchema()
 
 df.show(5)
+
+
+cast_date_expr = concat(                                        # create a concatenated column from the args
+    col('Date')                                                 # retrieve column Date
+    .cast(StringType()),                                        # and cast it to str
+    lit(' hello world')                                         # create a literal column
+)
+
+df.withColumn('new_date', cast_date_expr).show(5)                # adds new column to the df and shows it
+
+
 
 spark.stop()

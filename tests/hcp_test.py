@@ -51,8 +51,11 @@ class TestHighestClosingPricePerYear(unittest.TestCase):
         ]
         expected_df = self.spark.createDataFrame(expected_data)
         expected_df.show()
+        
         # Apply the function
+        # this works because spark case sensitivity is off
         result_df = highest_closing_price_per_year(test_df).drop('rank')
         result_df.show()
+        
         # Assert that the resulting DataFrame matches the expected one
         assertDataFrameEqual(result_df, expected_df)

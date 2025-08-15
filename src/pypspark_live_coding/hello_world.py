@@ -26,24 +26,30 @@ def main():
 
         # --- Example of a window function to find the day with the highest closing price each year ---
         print("\nDay with the highest closing price per year:")
-        window = Window.partitionBy(                                    # Create a window partitioned by year
-            year(col('Date'))
-        ).orderBy(
-            col('Close').desc()                                         # Order within each year by closing price
+        window = (
+            Window
+            .partitionBy(                                               # Create a window partitioned by year
+                year(col('Date'))
+            )
+            .orderBy(
+                col('Close').desc()                                     # Order within each year by closing price
+            )
         )
-
-        (df.withColumn(                                                 # Add a 'rank' column
+        
+        (df
+        .withColumn(                                                    # Add a 'rank' column
             'rank',
             row_number().over(window)                                   # Number rows within each window (year)
-        ).filter(                                                       # Keep only the top-ranked row per year
-            col('rank') == 1
-        ).drop(                                                         # Remove the temporary rank column
-            'rank'
-        ).select(                                                       # Select and rename columns for the final output
+        )
+        .filter(col('rank') == 1)                                       # Keep only the top-ranked row per year
+        # .drop('rank')                                                   # Remove the temporary rank column
+        .select(                                                        # Select and rename columns for the final output
             year(col('Date')).alias('Year'),                            # Explicitly use col() and alias the new column
             col('Date'),                                                # Use col() for consistency
-            col('Close')                                                # Use col() for consistency
-        ).show())
+            col('Close'),                                               # Use col() for consistency
+            col('rank')
+        )
+        .show())
 
     finally:
         print("Stopping Spark session.")

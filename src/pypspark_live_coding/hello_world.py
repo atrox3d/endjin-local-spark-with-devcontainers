@@ -36,20 +36,22 @@ def main():
             )
         )
         
-        (df
-        .withColumn(                                                    # Add a 'rank' column
-            'rank',
-            row_number().over(window)                                   # Number rows within each window (year)
+        (
+            df
+            .withColumn(                                                    # Add a 'rank' column
+                'rank',
+                row_number().over(window)                                   # Number rows within each window (year)
+            )
+            .filter(col('rank') == 1)                                       # Keep only the top-ranked row per year
+            # .drop('rank')                                                   # Remove the temporary rank column
+            .select(                                                        # Select and rename columns for the final output
+                year(col('Date')).alias('Year'),                            # Explicitly use col() and alias the new column
+                col('Date'),                                                # Use col() for consistency
+                col('Close'),                                               # Use col() for consistency
+                col('rank')
+            )
+            .show()
         )
-        .filter(col('rank') == 1)                                       # Keep only the top-ranked row per year
-        # .drop('rank')                                                   # Remove the temporary rank column
-        .select(                                                        # Select and rename columns for the final output
-            year(col('Date')).alias('Year'),                            # Explicitly use col() and alias the new column
-            col('Date'),                                                # Use col() for consistency
-            col('Close'),                                               # Use col() for consistency
-            col('rank')
-        )
-        .show())
 
     finally:
         print("Stopping Spark session.")

@@ -1,6 +1,5 @@
 from pyspark.sql import SparkSession, Window
-from pyspark.sql.functions import col, concat, lit, year, row_number
-from pyspark.sql.types import StringType
+from pyspark.sql.functions import col, year, row_number
 from pathlib import Path
 
 
@@ -8,58 +7,47 @@ PROJECT_PATH = Path(__file__).parent.parent.parent
 DATA_PATH = PROJECT_PATH / 'data'
 assert DATA_PATH.exists()
 
-spark :SparkSession = SparkSession.builder    \
-        .appName("hello-spark") \
-        .master("local[*]")     \
-        .getOrCreate()
+def main():
+    """Main function to run the Spark job."""
+    spark :SparkSession = SparkSession.builder    \
+            .appName("hello-spark") \
+            .master("local[*]")     \
+            .getOrCreate()
 
-print(spark.conf.get("spark.app.name"))
-print(f"Spark version: {spark.version}")
+    try:
+        print(f"Spark version: {spark.version}")
+        csv_path = str(DATA_PATH / 'AAPL.csv')
 
-csv_path = str(DATA_PATH / 'AAPL.csv')
+        # Read the data, inferring the schema for correct data types.
+        df = spark.read.csv(csv_path, header=True, inferSchema=True)
+        print("Original DataFrame schema:")
+        df.printSchema()
+        df.show(5)
 
-df = spark.read.csv(csv_path)                                   # does not consider 1st row as header
-df.printSchema()
+        # --- Example of a window function to find the day with the highest closing price each year ---
+        print("\nDay with the highest closing price per year:")
+        window = Window.partitionBy(                                    # Create a window partitioned by year
+            year(col('Date'))
+        ).orderBy(
+            col('Close').desc()                                         # Order within each year by closing price
+        )
 
-df = spark.read.csv(csv_path, header=True)                      # considers header but all columns are strings
-df.printSchema()
+        (df.withColumn(                                                 # Add a 'rank' column
+            'rank',
+            row_number().over(window)                                   # Number rows within each window (year)
+        ).filter(                                                       # Keep only the top-ranked row per year
+            col('rank') == 1
+        ).drop(                                                         # Remove the temporary rank column
+            'rank'
+        ).select(                                                       # Select and rename columns for the final output
+            year(col('Date')).alias('Year'),                            # Explicitly use col() and alias the new column
+            col('Date'),                                                # Use col() for consistency
+            col('Close')                                                # Use col() for consistency
+        ).show())
 
-df = spark.read.csv(csv_path, header=True, inferSchema=True)    # considers header and scans csv to infer data types (costly)
-df.printSchema()
+    finally:
+        print("Stopping Spark session.")
+        spark.stop()
 
-df.show(5)
-
-
-cast_date_expr = concat(                                        # create a concatenated column from the args
-    col('Date')                                                 # retrieve column Date
-    .cast(StringType()),                                        # and cast it to str
-    lit(' hello world')                                         # create a literal column
-)
-
-df.withColumn('new_date', cast_date_expr).show(5)                # adds new column to the df and shows it
-
-
-# this should be the corresponding SQL
-# SELECT *,
-# ROW_NUMBER() OVER(PARTITION BY year(Date) ORDER BY Close desc) rank,
-# FROM csv
-# WHERE rank = 1
-
-window = Window.partitionBy(                                    # create sql windows function
-    year(col('Date'))                                           # partitioning by the year of the Date
-).orderBy(
-    col('Close').desc()                                         # order window rows by Close DESC
-)
-
-df.withColumn(                                                  # add rank column
-    'rank', 
-    row_number().over(window)                                   # numbering the window records
-).filter(                                                       # filter only first records in windows
-    col('rank') == 1
-).drop(                                                         # drop rank column
-    'rank'
-).show()
-
-
-
-spark.stop()
+if __name__ == "__main__":
+    main()

@@ -63,23 +63,22 @@ df.show(5)
 
 (df.sort(
         date_add(
-            df['date'], 2           # transofrm column
-        ).desc()                    # sort order
+            df['date'], 2               # transofrm column
+        ).desc()                        # sort order
     )
 ).show(5)
 
-(df.sort(
-    df['date'].desc(),              # multiple rows
-    df['close'])                    # no effect, there are no duplicated dates
-).show(5)
+(df.sort(                               # multiple rows
+    df['date']                          
+    .cast(StringType()).substr(1, 7)    # get year-month, descending
+    .desc(),                            
+    df['close'])                        # close increases inside the yyyy-mm range
+).show(50)
 
-data = []
-for x in range(5):
-    for y in range(5):
-        data.append((x,y))
-
-
-df = spark.createDataFrame(data, schema=['x', 'y'])
+df = spark.createDataFrame(
+    [(x, y) for x in range(5) for y in range(5)], 
+    schema=['x', 'y']
+)
 
 df.show()
 df.sort(

@@ -1,4 +1,4 @@
-# PYSPARK DECONTAINERS TUTORIALS
+# PYSPARK DEVCONTAINERS TUTORIALS
 
 This project contains beginner pyspark tutorials.
 To run these scripts i built a docker image to use as a devcontainer in vscode, so that i didnt need to install java and spark on my mac.

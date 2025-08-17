@@ -22,7 +22,7 @@ def load_stock_data(symbol:str, datapath:str|Path=DATA_PATH) -> DataFrame:
     csv_path = f'{datapath!s}/{symbol}.csv'
     print(f'loading {csv_path}...')
 
-    # Read the data, inferring the schema for correct data types.
+    # Read the data, not inferring the schema for correct data types.
     df = spark.read.csv(
         csv_path,
         header=True, 

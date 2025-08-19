@@ -26,6 +26,9 @@ class PurchaseAnalyticsTableTest(unittest.TestCase):
         print(f"  App Name: {sc.appName}")
         # The uiWebUrl property provides the link to the Spark UI.
         print(f"  Web UI: {sc.uiWebUrl}")
+        # You can get any specific property from the SparkConf object.
+        conf = sc.getConf()
+        print(f"  Driver Bind Address: {conf.get('spark.driver.bindAddress')}")
         print("--------------------------\n")
 
 

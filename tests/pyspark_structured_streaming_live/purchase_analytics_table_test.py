@@ -121,7 +121,11 @@ class PurchaseAnalyticsTableTest(unittest.TestCase):
         
         # get final df
         actual_df = self.spark.sql("select * from filtered")
-        actual_df.show()
-        
         query.stop()
+        actual_df.show()
+        actual_dicts = [row.asDict() for row in actual_df.collect()]
+        
+        self.assertEqual(len(self.expected), len(actual_dicts))
+        self.assertIn(self.expected[0], actual_dicts)
+        
         

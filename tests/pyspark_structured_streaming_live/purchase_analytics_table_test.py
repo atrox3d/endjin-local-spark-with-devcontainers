@@ -1,6 +1,9 @@
 import unittest
 from pyspark.sql import SparkSession, DataFrame
 
+from src.retail.model.purchase import Purchase
+
+
 
 class PurchaseAnalyticsTableTest(unittest.TestCase):
     

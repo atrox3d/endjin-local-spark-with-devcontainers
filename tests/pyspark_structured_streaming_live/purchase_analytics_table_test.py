@@ -1,4 +1,5 @@
 import datetime
+import shutil
 import unittest
 from pyspark.sql import SparkSession, DataFrame
 from pathlib import Path
@@ -74,6 +75,14 @@ class PurchaseAnalyticsTableTest(unittest.TestCase):
         print("stopping spark session...")
         cls.spark.stop()
         print("spark session stopped")
+        cls.remove_temp_files(cls.tmp_dir)
+        print("temp files removed")
+    
+    
+    @staticmethod
+    def remove_temp_files(path:str):
+        shutil.rmtree(path, ignore_errors=True)
+
     
     
     def test_filter_purchases(self):
@@ -85,31 +94,34 @@ class PurchaseAnalyticsTableTest(unittest.TestCase):
         # write df to parquet
         (df
          .write
-         .mode("overwrite")        # deletes if existing and creates path and file
-         .format("parquet")
-         .save(self.table_path))
+         .mode("overwrite")                         # deletes if existing and creates path and file
+         .format("parquet")                         # output data format
+         .save(self.table_path))                    # save to output path
         
         # read stream from parquet
         streaming_df = (self.spark.readStream
-                        .format("parquet")
-                        .schema(Purchase.schema)
-                        .load(self.table_path))
+                        .format("parquet")          # source data format
+                        .schema(Purchase.schema)    # data chema
+                        .load(self.table_path))     # stream from path
         
         # use the stream in the function
         actual_streaming_df = PurchaseAnalytics.filter_purchases(streaming_df, upper_bound=upper_bound, lower_bound=lower_bound)
         print(f'{actual_streaming_df.isStreaming = }')
         
         # stream to memory table
-        query = (actual_streaming_df.writeStream
-            .format("memory")
-            .queryName("filtered")
-            .outputMode("append")
-            .start())
+        query = (actual_streaming_df
+            .writeStream
+            .format("memory")                       # write in memory table
+            .queryName("filtered")                  # name of the in-memory table   
+            .outputMode("append")                   # append mode
+            .start())                               # start streaming  the query
         
-        # terminate streaming
+        # get all available data
         query.processAllAvailable()
         
         # get final df
         actual_df = self.spark.sql("select * from filtered")
         actual_df.show()
+        
+        query.stop()
         

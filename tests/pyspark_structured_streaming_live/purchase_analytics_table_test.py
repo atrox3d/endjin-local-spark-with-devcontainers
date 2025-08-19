@@ -2,6 +2,7 @@ import unittest
 from pyspark.sql import SparkSession, DataFrame
 
 from src.retail.model.purchase import Purchase
+from src.pyspark_structured_streaming_live.purchase_analytics import PurchaseAnalytics
 
 
 

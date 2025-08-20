@@ -10,37 +10,6 @@ from src.pyspark_structured_streaming_live.purchase_analytics import PurchaseAna
 
 
 class PurchaseAnalyticsTableTest(unittest.TestCase):
-    # input test records
-    records = [
-        {
-            "purchaseId": "id-1",
-            "customerId": "c-1",
-            "productId": "p-1",
-            "quantity": 2,
-            "pricePerUnit": 10.0,
-            "purchaseTimestamp": datetime.datetime.fromisoformat("2025-08-01T10:00")
-        },
-        {
-            "purchaseId": "id-2",
-            "customerId": "c-1",
-            "productId": "p-2",
-            "quantity": 3,
-            "pricePerUnit": 1.0,
-            "purchaseTimestamp": datetime.datetime.fromisoformat("2025-08-01T11:00")
-        },
-    ]
-    
-    # expected test records
-    expected = [
-        {
-            "purchaseId": "id-2",
-            "customerId": "c-1",
-            "productId": "p-2",
-            "quantity": 3,
-            "pricePerUnit": 1.0,
-            "purchaseTimestamp": datetime.datetime.fromisoformat("2025-08-01T11:00")
-        },
-    ]
     
     # temp data path
     tmp_dir = f'/tmp/spark-streaming-test'
@@ -129,7 +98,26 @@ class PurchaseAnalyticsTableTest(unittest.TestCase):
         upper_bound = 10.0
         lower_bound = 0.0
         
-        streaming_df = self.get_streaming_df(self.records, Purchase.schema)
+        # input test records
+        records = [
+            {
+                "purchaseId": "id-1", "customerId": "c-1", "productId": "p-1", "quantity": 2, "pricePerUnit": 10.0, 
+                "purchaseTimestamp": datetime.datetime.fromisoformat("2025-08-01T10:00") },
+            {
+                "purchaseId": "id-2", "customerId": "c-1", "productId": "p-2", "quantity": 3, "pricePerUnit": 1.0, 
+                "purchaseTimestamp": datetime.datetime.fromisoformat("2025-08-01T11:00")
+            },
+        ]
+        
+        # expected test records
+        expected = [
+            {
+                "purchaseId": "id-2", "customerId": "c-1", "productId": "p-2", "quantity": 3, "pricePerUnit": 1.0, 
+                "purchaseTimestamp": datetime.datetime.fromisoformat("2025-08-01T11:00") 
+            },
+        ]
+        
+        streaming_df = self.get_streaming_df(records, Purchase.schema)
         
         # use the stream in the function
         actual_streaming_df = PurchaseAnalytics.filter_purchases(streaming_df, upper_bound=upper_bound, lower_bound=lower_bound)
@@ -139,5 +127,5 @@ class PurchaseAnalyticsTableTest(unittest.TestCase):
         query.stop()
         
         
-        self.assertEqual(len(self.expected), len(actual_dicts))
-        self.assertIn(self.expected[0], actual_dicts)
+        self.assertEqual(len(expected), len(actual_dicts))
+        self.assertIn(expected[0], actual_dicts)

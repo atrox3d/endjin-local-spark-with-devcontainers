@@ -98,7 +98,10 @@ class PurchaseAnalyticsTableTest(unittest.TestCase):
         
         # print dict
         actual_dict = actual_df.toPandas()
-        actual_dict['latestPurchaseTimestamp'] = actual_dict['latestPurchaseTimestamp'].apply(lambda x: x.isoformat())
+        actual_dict['latestPurchaseTimestamp'] = (
+                actual_dict['latestPurchaseTimestamp']
+                .apply(lambda x: x.isoformat())         # json: TimeStamp is not serializable
+            )
         actual_dict = actual_dict.to_dict()
         print(json.dumps(actual_dict, indent=2))
         
@@ -143,7 +146,7 @@ class PurchaseAnalyticsTableTest(unittest.TestCase):
         self.assertIn(expected[0], actual_dicts)
 
     
-    def test_product_aggregations(self):
+    def test_product_aggregations_single_batch(self):
         # input test records
         records = [
             {

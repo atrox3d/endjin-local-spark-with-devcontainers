@@ -19,3 +19,8 @@ To run these scripts i built a docker image to use as a devcontainer in vscode, 
 
 
 
+- [Philipp Brunenberg Live-Coding: Getting Started with PySpark Structured Streaming | part 1](https://www.youtube.com/live/5pKiZ29Xq4w?si=JmEW-y2sU2U6SuY7)
+
+- [Philipp Brunenberg Live-Coding: Getting Started with PySpark Structured Streaming | part 2](https://www.youtube.com/live/OSlSasgVyrQ?si=-hjF2E3gytVcr_gV)
+
+

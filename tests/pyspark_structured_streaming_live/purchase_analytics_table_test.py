@@ -1,12 +1,12 @@
 import datetime
 import shutil
 import unittest
+import json
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql import types as T
 
 from src.retail.model.purchase import Purchase
 from src.pyspark_structured_streaming_live.purchase_analytics import PurchaseAnalytics
-
 
 
 class PurchaseAnalyticsTableTest(unittest.TestCase):
@@ -74,14 +74,17 @@ class PurchaseAnalyticsTableTest(unittest.TestCase):
         return streaming_df
     
     
-    def process_all_as_dicts(self, actual_streaming_df: DataFrame) -> tuple[list, DataFrame]:
+    def process_all_as_dicts(self, actual_streaming_df: DataFrame, mode:str="append") -> tuple[list, DataFrame]:
         """creates list of dicts from streaming df."""
         # stream to memory table
         query = (actual_streaming_df
             .writeStream
             .format("memory")                       # write in memory table
             .queryName("filtered")                  # name of the in-memory table   
-            .outputMode("append")                   # append mode
+            .outputMode(mode)                       # mode is now a param because:
+                                                    #   pyspark.errors.exceptions.captured.AnalysisException: 
+                                                    #       Append output mode not supported when there are streaming aggregations 
+                                                    #       on streaming DataFrames/DataSets without watermark;
             .start())                               # start streaming  the query
         
         # get all available data
@@ -89,7 +92,17 @@ class PurchaseAnalyticsTableTest(unittest.TestCase):
         
         # get final df
         actual_df = self.spark.sql("select * from filtered")
+        
+        # print df
         actual_df.show()
+        
+        # print dict
+        actual_dict = actual_df.toPandas()
+        actual_dict['latestPurchaseTimestamp'] = actual_dict['latestPurchaseTimestamp'].apply(lambda x: x.isoformat())
+        actual_dict = actual_dict.to_dict()
+        print(json.dumps(actual_dict, indent=2))
+        
+        # convert df to list of dicts
         actual_dicts = [row.asDict() for row in actual_df.collect()]
         return actual_dicts, query
 
@@ -102,10 +115,10 @@ class PurchaseAnalyticsTableTest(unittest.TestCase):
         records = [
             {
                 "purchaseId": "id-1", "customerId": "c-1", "productId": "p-1", "quantity": 2, "pricePerUnit": 10.0, 
-                "purchaseTimestamp": datetime.datetime.fromisoformat("2025-08-01T10:00") },
+                "purchaseTimestamp": datetime.datetime.fromisoformat("2025-08-01T10:00:00") },
             {
                 "purchaseId": "id-2", "customerId": "c-1", "productId": "p-2", "quantity": 3, "pricePerUnit": 1.0, 
-                "purchaseTimestamp": datetime.datetime.fromisoformat("2025-08-01T11:00")
+                "purchaseTimestamp": datetime.datetime.fromisoformat("2025-08-01T11:00:00")
             },
         ]
         
@@ -113,7 +126,7 @@ class PurchaseAnalyticsTableTest(unittest.TestCase):
         expected = [
             {
                 "purchaseId": "id-2", "customerId": "c-1", "productId": "p-2", "quantity": 3, "pricePerUnit": 1.0, 
-                "purchaseTimestamp": datetime.datetime.fromisoformat("2025-08-01T11:00") 
+                "purchaseTimestamp": datetime.datetime.fromisoformat("2025-08-01T11:00:00") 
             },
         ]
         
@@ -126,6 +139,43 @@ class PurchaseAnalyticsTableTest(unittest.TestCase):
         actual_dicts, query = self.process_all_as_dicts(actual_streaming_df)
         query.stop()
         
+        self.assertEqual(len(expected), len(actual_dicts))
+        self.assertIn(expected[0], actual_dicts)
+
+    
+    def test_product_aggregations(self):
+        # input test records
+        records = [
+            {
+                "purchaseId": "id-1", "customerId": "c-1", "productId": "p-1", "quantity": 2, "pricePerUnit": 10.0, 
+                "purchaseTimestamp": datetime.datetime.fromisoformat("2025-08-01T10:00:00") },
+            {
+                "purchaseId": "id-2", "customerId": "c-1", "productId": "p-1", "quantity": 3, "pricePerUnit": 10.0, 
+                "purchaseTimestamp": datetime.datetime.fromisoformat("2025-08-01T11:00:00")
+            },
+        ]
+        
+        # expected test records
+        expected = [
+            { "productId": "p-1", "totalOrderVolume": 50.0, 
+              "latestPurchaseTimestamp": datetime.datetime.fromisoformat("2025-08-01T11:00:00") 
+            }, 
+        ]
+        
+        streaming_df = self.get_streaming_df(records, Purchase.schema)
+        
+        # use the stream in the function
+        actual_streaming_df = PurchaseAnalytics.product_aggregations(streaming_df)
+        
+        actual_dicts, query = self.process_all_as_dicts(
+                actual_streaming_df, 
+                mode="complete"         # use mode="complete" because:
+                                        #   pyspark.errors.exceptions.captured.AnalysisException: 
+                                        #       Append output mode not supported when there are streaming aggregations 
+                                        #       on streaming DataFrames/DataSets without watermark;
+
+        )
+        query.stop()
         
         self.assertEqual(len(expected), len(actual_dicts))
         self.assertIn(expected[0], actual_dicts)

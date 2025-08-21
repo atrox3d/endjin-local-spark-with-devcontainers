@@ -6,8 +6,15 @@ class PurchaseAnalytics:
     
     @staticmethod
     def product_aggregations(df: DataFrame) -> DataFrame:
-        return df
-    
+        result =  (df
+                .groupBy('productId')
+                .agg(
+                    F.sum(F.col('quantity') * F.col('pricePerUnit')).alias('totalOrderVolume'),
+                    F.max('purchaseTimestamp').alias('latestPurchaseTimestamp')
+                )
+        )
+        
+        return result
     
     @staticmethod
     def filter_purchases(df: DataFrame, upper_bound:float=10.0, lower_bound:float=1.0) -> DataFrame:
